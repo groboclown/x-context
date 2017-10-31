@@ -57,3 +57,9 @@ typings/
 # dotenv environment variables file
 .env
 
+# Python files
+*.pyc
+__pycache__/
+
+# Gradle files
+build/
