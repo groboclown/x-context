@@ -57,7 +57,12 @@ typings/
 # dotenv environment variables file
 .env
 
-# Python files
+# TypeScript
+# ---------------------------
+dist/
+
+# Python
+# ---------------------------
 *.pyc
 __pycache__/
 
