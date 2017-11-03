@@ -53,7 +53,7 @@
     "triple-equals": true,
     "use-isnan": true,
     "ban-comma-operator": true,
-    "no-import-side-effect": true,
+    // "no-import-side-effect": true,
     "no-non-null-assertion": true,
     "eofline": true,
     "indent": [true, "spaces"],

@@ -6,10 +6,13 @@
   "scripts": {
     "start": "npm run build && npm run watch",
     "build": "npm run build-ts && npm run tslint",
+    "pretest": "npm run tslint",
     "test": "jest --forceExit",
     "build-ts": "tsc",
     "watch-ts": "tsc -w",
-    "tslint": "tslint -c tslint.json -p tsconfig.json",
+    "lint": "npm run tslint",
+    "tslint": "tslint -c tslint.json -p tsconfig.json 'lib/**/*.{ts,tsx}'",
+    "tslint-test": "tslint -c tslint.json -p tsconfig.json 'test/**/*.{ts,tsx}'",
     "debug": "npm run build && npm run watch-debug",
     "serve-debug": "nodemon --inspect dist/server.js",
     "watch-debug": "concurrently -k -p \"[{name}]\" -n \"Sass,TypeScript,Node\" -c \"yellow.bold,cyan.bold,green.bold\" \"npm run watch-sass\" \"npm run watch-ts\" \"npm run serve-debug\""
@@ -17,9 +20,23 @@
   "keywords": [],
   "author": "Groboclown",
   "license": "MIT",
+  "jest": {
+    "moduleFileExtensions": [
+      "ts",
+      "tsx",
+      "js"
+    ],
+    "transform": {
+      "\\.(ts|tsx)$": "<rootDir>/node_modules/ts-jest/preprocessor.js"
+    },
+    "testRegex": "/test/.*\\.test\\.(ts|tsx)$",
+    "mapCoverage": true
+  },
   "devDependencies": {
+    "@types/jest": "^21.1.5",
     "@types/node": "^8.0.47",
     "jest": "^21.2.1",
+    "ts-jest": "^21.1.4",
     "tslint": "^5.8.0",
     "tslint-consistent-codestyle": "^1.8.0",
     "typescript": "^2.5.3"

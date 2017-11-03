@@ -1,3 +1,21 @@
+/*
+ * Usage:
+ *
+ * This is the basis for storing and accessing the context execution.
+ * To create a segmented execution context, extend the RunContext
+ * class to be the logic for when a context is entered and left.
+ * Then implement the RunContextRegistration to define the
+ * name and initial state of the segmented context.
+ *
+ * To start to use the context, you will need a ExecutionContextService
+ * instance to store the registration of all the segmented contexts.
+ * This stores different 'stack scopes' (called 'threadName' in the
+ * source), which are accessed to get a ExecutionContextView.
+ * Because this is JavaScript, there's a default thread name that
+ * can be used.  With the ExecutionContextView, the 'runInContext'
+ * can be called.
+ */
+
 
 import {
   ExecutionContextAlreadyRegisteredError,
@@ -6,27 +24,29 @@ import {
   ExecutionContextStackEmptyError
 } from './exceptions';
 
-export interface AnyFn<T> {
-  // tslint:disable-next-line:no-any
-  (...args: any[]): T;
-}
-
 export abstract class ContextInvocation<T> {
-  readonly invoked: AnyFn<T>;
+  /** The 'this' value when the method is invoked */
+  readonly scopedThis: Object;
+  readonly invoked: Function;
   // tslint:disable-next-line:no-any
   readonly args: any[];
+  readonly argDescriptors: IArguments | undefined;
   readonly target: Object | undefined;
   readonly propertyKey: string | symbol | undefined;
 
   constructor(
-        invoked: AnyFn<T>,
+        scopedThis: Object,
+        invoked: Function,
         // tslint:disable-next-line:no-any
         args: any[],
+        argDescriptors: IArguments | undefined,
         target: Object | undefined,
         propertyKey: string | symbol | undefined
       ) {
+    this.scopedThis = scopedThis;
     this.invoked = invoked;
     this.args = args;
+    this.argDescriptors = argDescriptors;
     this.target = target;
     this.propertyKey = propertyKey;
   }
@@ -56,6 +76,10 @@ export abstract class RunContext<SelfType extends RunContext<SelfType>> {
 }
 
 
+/**
+ * Helper run context that executes before the invoked method runs.
+ * This is useful for precondition checks.
+ */
 export abstract class PreExecuteRunContext<SelfType extends PreExecuteRunContext<SelfType>>
     extends RunContext<SelfType> {
   onContext<T>(invoked: ContextInvocation<T>): T {
@@ -68,6 +92,9 @@ export abstract class PreExecuteRunContext<SelfType extends PreExecuteRunContext
 }
 
 
+/**
+ * Helper run context that executes after the invoked method runs.
+ */
 export abstract class PostExecuteRunContext<SelfType extends PreExecuteRunContext<SelfType>>
     extends RunContext<SelfType> {
   onContext<T>(invoked: ContextInvocation<T>): T {
@@ -80,6 +107,10 @@ export abstract class PostExecuteRunContext<SelfType extends PreExecuteRunContex
 }
 
 
+/**
+ * Stored the segmentation name, and creates an initial context for
+ * said segmented execution context.
+ */
 export interface RunContextRegistration<T extends RunContext<T>> {
   readonly kind: string;
 
@@ -118,8 +149,7 @@ class RunContextRegistry {
    * @throws ExecutionContextAlreadyRegisteredError: a registration instance
    *    is already registered with the given `kind`.
    */
-  // tslint:disable-next-line:no-any
-  register(reg: RunContextRegistration<any>): void {
+  register<T extends RunContext<T>>(reg: RunContextRegistration<T>): void {
     if (reg.kind in this._store) {
       throw new ExecutionContextAlreadyRegisteredError(
         reg.kind,
@@ -161,7 +191,7 @@ class RunContextRegistry {
 /**
  * Container for all the segmented executions.
  */
-export class ExecutionContextContainer {
+class ExecutionContextContainer {
   private readonly _segmentStacks = new Array<SegmentContext>();
 
   /**
@@ -209,7 +239,7 @@ class ExecutionContextModel {
   // each promise and event has its own independent context stack.
   private readonly _contextStack: {
     [name: string]: ExecutionContextContainer
-  };
+  } = {};
   private readonly _rootContexts: SegmentContext = {};
   private readonly _registry = new RunContextRegistry();
 
@@ -273,14 +303,42 @@ class ExecutionContextModel {
     }
     return r;
   }
+
+  register<T extends RunContext<T>>(reg: RunContextRegistration<T>): void {
+    this._registry.register(reg);
+  }
 }
 
+export const DEFAULT_THREAD_NAME = 'default';
 
+/**
+ * The primary service for registering RunContext segments,
+ * and for accessing the current execution context view of a
+ * specific scoped stack (called here a `threadName`).
+ */
 export class ExecutionContextService {
+  private static _default = new ExecutionContextService();
   private readonly _model = new ExecutionContextModel();
+
+  static getDefaultInstance(): ExecutionContextService {
+    return ExecutionContextService._default;
+  }
+
+  getCurrentThreadName(): string {
+    // In other languages, this should be better defined.
+    return DEFAULT_THREAD_NAME;
+  }
 
   forThead(threadName: string): ExecutionContextView {
     return new ExecutionContextViewImpl(threadName, this._model);
+  }
+
+  forCurrentThread(): ExecutionContextView {
+    return this.forThead(this.getCurrentThreadName());
+  }
+
+  register<T extends RunContext<T>>(reg: RunContextRegistration<T>): void {
+    this._model.register(reg);
   }
 }
 
@@ -288,7 +346,7 @@ export class ExecutionContextService {
 
 class InnerContextInvocation<T> extends ContextInvocation<T> {
   invoke(): T {
-    return this.invoked.apply(this.target, ...this.args);
+    return this.invoked.apply(this.scopedThis, this.args);
   }
 }
 
@@ -299,16 +357,18 @@ class CompositeContextInvocation<T> extends ContextInvocation<T> {
   readonly innerContext: RunContext<any>;
 
   constructor(
-        invoked: AnyFn<T>,
+        scopedThis: Object,
+        invoked: Function,
         // tslint:disable-next-line:no-any
         args: any[],
+        argDescriptors: IArguments | undefined,
         target: Object | undefined,
         propertyKey: string | symbol | undefined,
         innerInvoke: ContextInvocation<T>,
         // tslint:disable-next-line:no-any
         innerContext: RunContext<any>
       ) {
-    super(invoked, args, target, propertyKey);
+    super(scopedThis, invoked, args, argDescriptors, target, propertyKey);
     this.innerInvoke = innerInvoke;
     this.innerContext = innerContext;
   }
@@ -320,18 +380,34 @@ class CompositeContextInvocation<T> extends ContextInvocation<T> {
 
 
 export interface ExecutionContextView {
+  /**
+   * Fetch a scoped execution run context.
+   *
+   * @param kind the segmentation to retrieve.
+   */
   getActiveRunContext<T extends RunContext<T>>(kind: string): T;
 
   /**
-   *
+   * @param contexts the new child execution context segments;
+   *    these are options that will be used to create the children,
+   *    based on the current segment context.
+   * @param scopedThis the `this` object scope for the invoked method.
+   * @param invoked the function being invoked.
+   * @param args the list of arguments passed to the function.
+   * @param argDescriptors an IArguments descriptor.
+   * @param target the declared target for the execution.
+   * @param propertyKey the name of the function invoked.
    */
   runInContext<T>(
-        invoked: AnyFn<T>,
+        contexts: { [kind: string]: ChildContextOptions },
+        scopedThis: Object,
+        invoked: Function,
         // tslint:disable-next-line:no-any
         args: any[],
-        target: Object | undefined,
-        propertyKey: string | symbol | undefined,
-        contexts: { [kind: string]: ChildContextOptions }
+        argDescriptors?: IArguments | undefined,
+        // tslint:disable-next-line:no-any
+        target?: any,
+        propertyKey?: string | symbol | undefined
       ): T;
 }
 
@@ -353,20 +429,20 @@ class ExecutionContextViewImpl implements ExecutionContextView {
     return this._model.getContextSegment(this._threadName, kind);
   }
 
-  /**
-   *
-   */
   public runInContext<T>(
-        invoked: AnyFn<T>,
+        contexts: { [kind: string]: ChildContextOptions }
+        scopedThis: Object,
+        invoked: Function,
         // tslint:disable-next-line:no-any
         args: any[],
-        target: Object | undefined,
-        propertyKey: string | symbol | undefined,
-        contexts: { [kind: string]: ChildContextOptions }
+        argDescriptors?: IArguments,
+        // tslint:disable-next-line:no-any
+        target?: any,
+        propertyKey?: string | symbol | undefined
       ): T {
     this._model.enterContext(this._threadName, contexts);
     let invoker = new InnerContextInvocation<T>(
-      invoked, args, target, propertyKey
+      scopedThis, invoked, args, argDescriptors, target, propertyKey
     );
 
     // We need to wrap the rcList as a series of function compositions.
@@ -376,7 +452,7 @@ class ExecutionContextViewImpl implements ExecutionContextView {
         continue;
       }
       invoker = new CompositeContextInvocation<T>(
-        invoked, args, target, propertyKey,
+        scopedThis, invoked, args, argDescriptors, target, propertyKey,
         invoker, rcMap[rcKey]
       );
     }
