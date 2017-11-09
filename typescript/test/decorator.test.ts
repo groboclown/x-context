@@ -3,7 +3,7 @@ import 'jest';
 
 import {
   RunContext,
-  ChildContextOptions,
+  /*ChildContextOptions,*/
   ContextInvocation,
   RunContextRegistration,
   ExecutionContextService
@@ -17,8 +17,8 @@ import {
 describe('run in context', () => {
   class SimpleRunContext extends RunContext<SimpleRunContext> {
     readonly created: SimpleRunContext[];
-    beforeContext: int = 0;
-    afterContext: int = 0;
+    beforeContext: number = 0;
+    afterContext: number = 0;
 
     constructor(created: SimpleRunContext[]) {
       super();
@@ -27,13 +27,13 @@ describe('run in context', () => {
       this.created.push(this);
     }
 
-    createChild(options: ChildContextOptions): SimpleRunContext {
+    createChild(/*options: ChildContextOptions*/): SimpleRunContext {
       return new SimpleRunContext(this.created);
     }
 
     onContext<T>(invoked: ContextInvocation<T>): T {
       console.log('Entering onContext');
-      this.calledContext++;
+      this.beforeContext++;
       let r = invoked.invoke();
       this.afterContext++;
       console.log('Leaving onContext');
@@ -44,7 +44,7 @@ describe('run in context', () => {
     readonly kind: string = 'simple';
     readonly created: SimpleRunContext[] = [];
 
-    createInitialContext(): T {
+    createInitialContext(): SimpleRunContext {
       return new SimpleRunContext(this.created);
     }
   }
@@ -54,7 +54,7 @@ describe('run in context', () => {
     let simpleReg = new SimpleRunContextRegistration();
     service.register(simpleReg);
 
-    const simpleCall = (i: int): Function => {
+    const simpleCall = (i: number): Function => {
       console.log('decorator call ' + i);
       return createContextWrapperDecoratorFunction(
         { simple: {} },
@@ -63,10 +63,10 @@ describe('run in context', () => {
     };
 
     class OC1 {
-      key: int = 2;
+      key: number = 2;
 
       @simpleCall(1)
-      runIt(count: int): void {
+      runIt(count: number): void {
         console.log(`Called runIt ${count} from ${this.key}`);
         if (count > 1) {
           this.runIt(count - 1);
@@ -78,5 +78,7 @@ describe('run in context', () => {
 
     // 3 calls + 1 initial context
     expect(simpleReg.created.length).toEqual(4);
+    expect(simpleReg.created[0].beforeContext).toEqual(1);
+    expect(simpleReg.created[0].afterContext).toEqual(1);
   });
 });

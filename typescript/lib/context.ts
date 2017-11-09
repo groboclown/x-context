@@ -20,13 +20,15 @@
 import {
   ExecutionContextAlreadyRegisteredError,
   ExecutionContextNotRegisteredError,
+  NoSuchThreadExecutionContextError,
+  DuplicateThreadExecutionContextError,
   DuplicateExecutionContextSegmentsError,
   ExecutionContextStackEmptyError
 } from './exceptions';
 
 export abstract class ContextInvocation<T> {
   /** The 'this' value when the method is invoked */
-  readonly scopedThis: Object;
+  readonly scopedThis: Object | undefined;
   readonly invoked: Function;
   // tslint:disable-next-line:no-any
   readonly args: any[];
@@ -35,7 +37,7 @@ export abstract class ContextInvocation<T> {
   readonly propertyKey: string | symbol | undefined;
 
   constructor(
-        scopedThis: Object,
+        scopedThis: Object | undefined,
         invoked: Function,
         // tslint:disable-next-line:no-any
         args: any[],
@@ -62,6 +64,11 @@ export abstract class ContextInvocation<T> {
 export type ChildContextOptions = {
   // tslint:disable-next-line:no-any
   [name: string]: any
+};
+
+
+export type SegmentedContextOptions = {
+  [kind: string]: ChildContextOptions
 };
 
 
@@ -194,6 +201,14 @@ class RunContextRegistry {
 class ExecutionContextContainer {
   private readonly _segmentStacks = new Array<SegmentContext>();
 
+  fork(): ExecutionContextContainer {
+    let ret = new ExecutionContextContainer();
+    for (let s of this._segmentStacks) {
+      ret._segmentStacks.push(s);
+    }
+    return ret;
+  }
+
   /**
    * Called when a new context is entered, which requires a
    * change in the existing stack.
@@ -243,7 +258,26 @@ class ExecutionContextModel {
   private readonly _rootContexts: SegmentContext = {};
   private readonly _registry = new RunContextRegistry();
 
-  enterContext(threadName: string, contexts: { [kind: string]: ChildContextOptions }): void {
+  forkThread(oldThreadName: string, newThreadName?: string | undefined): string {
+    if (!(oldThreadName in this._contextStack)) {
+      throw new NoSuchThreadExecutionContextError(oldThreadName);
+    }
+    if (newThreadName !== undefined && newThreadName in this._contextStack) {
+      throw new DuplicateThreadExecutionContextError(newThreadName);
+    }
+    if (newThreadName === undefined) {
+      let i = -1;
+      do {
+        i += 1;
+        newThreadName = oldThreadName + '.' + i;
+      } while (newThreadName in this._contextStack);
+    }
+    this._contextStack[newThreadName] =
+      this._contextStack[oldThreadName].fork();
+    return newThreadName;
+  }
+
+  enterContext(threadName: string, contexts: SegmentedContextOptions): void {
     let rcList: SegmentContext = {};
     for (let kind in contexts) {
         if (!contexts.hasOwnProperty(kind)) {
@@ -329,12 +363,22 @@ export class ExecutionContextService {
     return DEFAULT_THREAD_NAME;
   }
 
-  forThead(threadName: string): ExecutionContextView {
+  forkThreadAs(oldThreadName: string, newThreadName: string): ExecutionContextView {
+    this._model.forkThread(oldThreadName, newThreadName);
+    return this.forThread(newThreadName);
+  }
+
+  forkThreadAsUnique(oldThreadName: string): ExecutionContextView {
+    let newThreadName = this._model.forkThread(oldThreadName, undefined);
+    return this.forThread(newThreadName);
+  }
+
+  forThread(threadName: string): ExecutionContextView {
     return new ExecutionContextViewImpl(threadName, this._model);
   }
 
   forCurrentThread(): ExecutionContextView {
-    return this.forThead(this.getCurrentThreadName());
+    return this.forThread(this.getCurrentThreadName());
   }
 
   register<T extends RunContext<T>>(reg: RunContextRegistration<T>): void {
@@ -357,7 +401,7 @@ class CompositeContextInvocation<T> extends ContextInvocation<T> {
   readonly innerContext: RunContext<any>;
 
   constructor(
-        scopedThis: Object,
+        scopedThis: Object | undefined,
         invoked: Function,
         // tslint:disable-next-line:no-any
         args: any[],
@@ -399,8 +443,8 @@ export interface ExecutionContextView {
    * @param propertyKey the name of the function invoked.
    */
   runInContext<T>(
-        contexts: { [kind: string]: ChildContextOptions },
-        scopedThis: Object,
+        contexts: SegmentedContextOptions,
+        scopedThis: Object | undefined,
         invoked: Function,
         // tslint:disable-next-line:no-any
         args: any[],
@@ -430,8 +474,8 @@ class ExecutionContextViewImpl implements ExecutionContextView {
   }
 
   public runInContext<T>(
-        contexts: { [kind: string]: ChildContextOptions }
-        scopedThis: Object,
+        contexts: SegmentedContextOptions,
+        scopedThis: Object | undefined,
         invoked: Function,
         // tslint:disable-next-line:no-any
         args: any[],

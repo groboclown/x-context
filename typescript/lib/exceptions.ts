@@ -77,6 +77,36 @@ export class ExecutionContextEnteredError extends ExecutionContextError {
 /**
  * The child context contained multple run context instances
  */
+export class NoSuchThreadExecutionContextError extends ExecutionContextEnteredError {
+  public readonly threadName: string;
+
+  constructor(threadName: string) {
+    super(`No existing thread named ${threadName}`);
+    // Maintains proper stack trace for where our error was thrown
+    Error.captureStackTrace(this, NoSuchThreadExecutionContextError);
+    this.threadName = threadName;
+  }
+}
+
+
+/**
+ * The child context contained multple run context instances
+ */
+export class DuplicateThreadExecutionContextError extends ExecutionContextEnteredError {
+  public readonly threadName: string;
+
+  constructor(threadName: string) {
+    super(`A thread named ${threadName} already exists`);
+    // Maintains proper stack trace for where our error was thrown
+    Error.captureStackTrace(this, DuplicateThreadExecutionContextError);
+    this.threadName = threadName;
+  }
+}
+
+
+/**
+ * The child context contained multple run context instances
+ */
 export class DuplicateExecutionContextSegmentsError extends ExecutionContextEnteredError {
   public readonly kind: string;
 
@@ -85,6 +115,18 @@ export class DuplicateExecutionContextSegmentsError extends ExecutionContextEnte
     // Maintains proper stack trace for where our error was thrown
     Error.captureStackTrace(this, DuplicateExecutionContextSegmentsError);
     this.kind = kind;
+  }
+}
+
+
+/**
+ * The child context contained multple run context instances
+ */
+export class NoExecutionContextViewDefinedError extends ExecutionContextEnteredError {
+  constructor() {
+    super('No ExecutionContextView defined for use in the current environment');
+    // Maintains proper stack trace for where our error was thrown
+    Error.captureStackTrace(this, NoExecutionContextViewDefinedError);
   }
 }
 
