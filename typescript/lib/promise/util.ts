@@ -18,6 +18,7 @@ export const isPromiseLike = <T>(o: any): o is PromiseLike<T> => {
 };
 
 
+// tslint:disable-next-line:no-any
 export const isPromiseExecutor = <T>(o: any): o is PromiseExecutor<T> => {
   if (o === null || o === undefined || ! isFunction(o)) {
     return false;
@@ -27,6 +28,7 @@ export const isPromiseExecutor = <T>(o: any): o is PromiseExecutor<T> => {
 };
 
 
+// tslint:disable-next-line:no-any
 export const isContextPromiseExecutor = <T>(o: any): o is ContextPromiseExecutor<T> => {
   if (o === null || o === undefined || ! isFunction(o)) {
     return false;

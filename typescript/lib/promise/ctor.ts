@@ -76,16 +76,19 @@ export class ContextPromiseConstructorImpl implements ContextPromiseStatic {
     return ret;
   }
 
+  // tslint:disable-next-line:no-any
   as<TResult>(arg1: any, arg2?: any): ContextPromise<TResult> {
     let options: SegmentedContextOptions = {};
     let executor: ContextPromiseExecutor<TResult> | undefined = undefined;
     if (isContextPromiseExecutor(arg1)) {
       executor = arg1;
     } else if (arg1 !== null && arg1 !== undefined && ! isFunction(arg1)) {
-      options = <SegmentedContextOptions>arg1;
-      executor = <ContextPromiseExecutor<TResult> | undefined>arg2;
+      options = <SegmentedContextOptions> arg1;
+      executor = <ContextPromiseExecutor<TResult> | undefined> arg2;
     } else {
-      throw new TypeError('expected arguments (SegmentedContextOptions, ContextPromiseExecutor) or (ContextPromiseExecutor)');
+      throw new TypeError(
+        'expected arguments (SegmentedContextOptions, ContextPromiseExecutor) or (ContextPromiseExecutor)'
+      );
     }
     if (executor !== undefined) {
       return createInitialPromise(this._getView(), options, executor);
@@ -106,38 +109,44 @@ export class ContextPromiseConstructorImpl implements ContextPromiseStatic {
   // ====================================================================
   // Inherited PromiseConstructor methods
 
+  // tslint:disable-next-line:no-any
   all(...args: any[]): ContextPromise<any> {
     let pa = argParser(args);
     let augmented = [];
     for (let value of pa.values) {
       if (isPromiseLike(value)) {
-        augmented.push(new ContextPromiseRunner<any>(value, [this._forkView()], pa.options));
+        // tslint:disable-next-line:no-any
+        augmented.push(new ContextPromiseRunner<any>(value, this._forkView(), pa.options));
       } else {
         augmented.push(value);
       }
     }
+    // tslint:disable-next-line:no-any
     return new ContextPromiseRunner<any>(
       proxyAll(augmented),
-      [this._getView()],
+      this._getView(),
       // the options arguments are just for the all invocation.
       {}
     );
   }
 
 
+  // tslint:disable-next-line:no-any
   race(...args: any[]): ContextPromise<any> {
     let pa = argParser(args);
     let augmented = [];
     for (let value of pa.values) {
       if (isPromiseLike(value)) {
-        augmented.push(new ContextPromiseRunner<any>(value, [this._forkView()], pa.options));
+        // tslint:disable-next-line:no-any
+        augmented.push(new ContextPromiseRunner<any>(value, this._forkView(), pa.options));
       } else {
         augmented.push(value);
       }
     }
+    // tslint:disable-next-line:no-any
     return new ContextPromiseRunner<any>(
       proxyRace(augmented),
-      [this._getView()],
+      this._getView(),
       // the options arguments are just for the race invocation.
       {}
     );
@@ -148,28 +157,29 @@ export class ContextPromiseConstructorImpl implements ContextPromiseStatic {
     if (value === undefined) {
       return new ContextPromiseRunner<T>(
         proxyResolveNoArg(),
-        [this._getView()],
+        this._getView(),
         {}
       );
     }
     if (isPromiseLike(value)) {
       return new ContextPromiseRunner<T>(
         value,
-        [this._getView()],
+        this._getView(),
         {}
       );
     }
     return new ContextPromiseRunner<T>(
       proxyResolveArg(value),
-      [this._getView()],
+      this._getView(),
       {}
     );
   }
 
+  // tslint:disable-next-line:no-any
   reject(reason: any): any {
     return new ContextPromiseRunner<object>(
       proxyReject(reason),
-      [this._getView()],
+      this._getView(),
       {}
     );
   }
@@ -212,6 +222,7 @@ export class ContextPromiseConstructorImpl implements ContextPromiseStatic {
 }
 
 type ParsedArg = {
+  // tslint:disable-next-line:no-any
   values: any[];
   options: SegmentedContextOptions;
 };
@@ -222,7 +233,7 @@ const _GlobalContextPromise: ContextPromiseConstructorImpl = new ContextPromiseC
 
 
 
-
+// tslint:disable-next-line:no-any
 const argParser = (args: any[]): ParsedArg => {
   let ret: ParsedArg = { values: [], options: {} };
   if (args.length === 2) {

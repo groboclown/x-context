@@ -24,14 +24,18 @@ export const createProxyPromise = <T>(c: PromiseExecutor<T>): Promise<T> => {
   return new _PC(c);
 };
 
+// tslint:disable-next-line:no-any
 export const proxyAll = <T>(promises: any): Promise<T> => {
+  // tslint:disable-next-line:no-any
   let a: Promise<any> = _PC.all(promises);
-  return <Promise<T>>a;
+  return <Promise<T>> a;
 };
 
+// tslint:disable-next-line:no-any
 export const proxyRace = <T>(promises: any): Promise<T> => {
+  // tslint:disable-next-line:no-any
   let a: Promise<any> = _PC.race(promises);
-  return <Promise<T>>a;
+  return <Promise<T>> a;
 };
 
 export const proxyResolveArg = <T>(t: T): Promise<T> => {
@@ -39,8 +43,9 @@ export const proxyResolveArg = <T>(t: T): Promise<T> => {
 };
 
 export const proxyResolveNoArg = <T>(): Promise<T> => {
+  // tslint:disable-next-line:no-any
   let a: any = _PC.resolve();
-  return <Promise<T>>a;
+  return <Promise<T>> a;
 };
 
 export const proxyReject = <T>(t: T): Promise<T> => {
