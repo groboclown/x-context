@@ -23,7 +23,7 @@ describe('run in context', () => {
     constructor(created: SimpleRunContext[]) {
       super();
       this.created = created;
-      console.log('creating context, size = ' + created.length);
+      //console.log('creating context, size = ' + created.length);
       this.created.push(this);
     }
 
@@ -32,11 +32,11 @@ describe('run in context', () => {
     }
 
     onContext<T>(invoked: ContextInvocation<T>): T {
-      console.log('Entering onContext');
+      //console.log('Entering onContext');
       this.beforeContext++;
       let r = invoked.invoke();
       this.afterContext++;
-      console.log('Leaving onContext');
+      //console.log('Leaving onContext');
       return r;
     }
   }
@@ -49,36 +49,51 @@ describe('run in context', () => {
     }
   }
 
-  it('one context', () => {
+  it('one context, double call', () => {
     let service = new ExecutionContextService();
     let simpleReg = new SimpleRunContextRegistration();
     service.register(simpleReg);
 
     const simpleCall = (i: number): Function => {
-      console.log('decorator call ' + i);
+      // console.log('decorator call ' + i);
       return createContextWrapperDecoratorFunction(
-        { simple: {} },
+        { simple: { key: i } },
         service
       );
     };
 
     class OC1 {
       key: number = 2;
+      callCount = 0;
 
       @simpleCall(1)
       runIt(count: number): void {
-        console.log(`Called runIt ${count} from ${this.key}`);
+        //console.log(`Called runIt ${count} from ${this.key}`);
+        this.callCount++;
         if (count > 1) {
           this.runIt(count - 1);
+        }
+        if (count > 2) {
+          this.runIt(count - 2);
         }
       }
     }
 
-    (new OC1()).runIt(3);
+    let oc = new OC1();
+    oc.runIt(3);
 
-    // 3 calls + 1 initial context
-    expect(simpleReg.created.length).toEqual(4);
-    expect(simpleReg.created[0].beforeContext).toEqual(1);
-    expect(simpleReg.created[0].afterContext).toEqual(1);
+    // 4 calls + 1 initial context
+    expect(oc.callCount).toEqual(4);
+    expect(simpleReg.created.length).toEqual(5);
+    expect(simpleReg.created[0].beforeContext).toEqual(0);
+    expect(simpleReg.created[0].afterContext).toEqual(0);
+    expect(simpleReg.created[1].beforeContext).toEqual(1);
+    expect(simpleReg.created[1].afterContext).toEqual(1);
+    expect(simpleReg.created[2].beforeContext).toEqual(1);
+    expect(simpleReg.created[2].afterContext).toEqual(1);
+    expect(simpleReg.created[3].beforeContext).toEqual(1);
+    expect(simpleReg.created[3].afterContext).toEqual(1);
+    expect(simpleReg.created[4].beforeContext).toEqual(1);
+    expect(simpleReg.created[4].afterContext).toEqual(1);
   });
 });
