@@ -106,6 +106,7 @@ class ExecutionContextContainer {
       }
     }
     this._segmentStacks.push(newSegs);
+    //console.log(`[DEBUG] context stack size ${this._segmentStacks.length}`);
   }
 
   exitContext(): void {
@@ -144,7 +145,10 @@ class ExecutionContextModel {
 
   forkThread(oldThreadName: string, newThreadName?: string | undefined): string {
     if (!(oldThreadName in this._contextStack)) {
-      throw new NoSuchThreadExecutionContextError(oldThreadName);
+      if (oldThreadName !== DEFAULT_THREAD_NAME) {
+        throw new NoSuchThreadExecutionContextError(oldThreadName);
+      }
+      this._contextStack[DEFAULT_THREAD_NAME] = new ExecutionContextContainer();
     }
     if (newThreadName !== undefined && newThreadName in this._contextStack) {
       throw new DuplicateThreadExecutionContextError(newThreadName);
@@ -162,6 +166,7 @@ class ExecutionContextModel {
   }
 
   enterContext(threadName: string, contexts: SegmentedContextOptions): void {
+    //let debugKeys = '';
     let rcList: SegmentContext = {};
     for (let kind in contexts) {
         if (!contexts.hasOwnProperty(kind)) {
@@ -173,8 +178,10 @@ class ExecutionContextModel {
         }
         // tslint:disable-next-line:no-any
         let rc: RunContext<any> = this.getContextSegment(threadName, kind);
+        //debugKeys += ` [${kind}]`;
         rcList[kind] = rc.createChild(options);
     }
+    //console.log(`[DEBUG ${threadName}] Entering context {${debugKeys}}`);
     if (!(threadName in this._contextStack)) {
       this._contextStack[threadName] = new ExecutionContextContainer();
     }
@@ -353,6 +360,7 @@ class ExecutionContextViewImpl implements ExecutionContextView {
     }
 
     try {
+      //console.log(`[DEBUG ${this._threadName}]: starting invocation`);
       return invoker.invoke();
     } finally {
       this._model.exitContext(this._threadName);
