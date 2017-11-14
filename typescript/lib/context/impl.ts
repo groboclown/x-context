@@ -133,6 +133,9 @@ class ExecutionContextContainer {
   }
 }
 
+/**
+ * Shared, internal data model for the context registry and thread stacks.
+ */
 class ExecutionContextModel {
   // This named collection represents the per "thread" execution context.
   // JavaScript (and, thus, TypeScript) doesn't support threads.  However,
@@ -278,7 +281,10 @@ export class ExecutionContextService {
 }
 
 
-
+/**
+ * Simple, low-level invoking of the requested method.  Used at the
+ * lowest level of the context invocation chain.
+ */
 class InnerContextInvocation<T> extends ContextInvocation<T> {
   invoke(): T {
     return this.invoked.apply(this.scopedThis, this.args);
@@ -286,6 +292,9 @@ class InnerContextInvocation<T> extends ContextInvocation<T> {
 }
 
 
+/**
+ * Runs another context invocation, creating a composite function.
+ */
 class CompositeContextInvocation<T> extends ContextInvocation<T> {
   readonly innerInvoke: ContextInvocation<T>;
   // tslint:disable-next-line:no-any
@@ -316,7 +325,8 @@ class CompositeContextInvocation<T> extends ContextInvocation<T> {
 
 
 /**
- * The public view for the execution context.  The
+ * Implementation of the context view.  This builds up the invoker chain
+ * so that the correct context wrapping can work.
  */
 class ExecutionContextViewImpl implements ExecutionContextView {
   private readonly _model: ExecutionContextModel;
@@ -342,7 +352,11 @@ class ExecutionContextViewImpl implements ExecutionContextView {
         target?: any,
         propertyKey?: string | symbol | undefined
       ): T {
+    // mark that the new context was entered.
     this._model.enterContext(this._threadName, contexts);
+
+    // Create the lowest level of our invocation chain, which actually invokes
+    // the requested method.
     let invoker = new InnerContextInvocation<T>(
       scopedThis, invoked, args, argDescriptors, target, propertyKey
     );

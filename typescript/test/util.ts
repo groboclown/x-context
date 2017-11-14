@@ -3,7 +3,8 @@
 import {
   RunContext,
   ContextInvocation,
-  RunContextRegistration
+  RunContextRegistration,
+  ChildContextOptions
 } from '../lib/context';
 import {
   ExecutionContextEnteredError
@@ -121,5 +122,31 @@ export class SecuritySimulationContextRegistration implements RunContextRegistra
 
   createInitialContext(): SecuritySimulationContext {
     return new SecuritySimulationContext({ forbidden: undefined, uses: undefined });
+  }
+}
+
+export class PropertiesRunContext extends RunContext<PropertiesRunContext> {
+  readonly options: ChildContextOptions;
+  constructor(options: ChildContextOptions) {
+    super();
+    this.options = options;
+  }
+  createChild(options: ChildContextOptions): PropertiesRunContext {
+    let resolved: ChildContextOptions = {};
+    for (let key in this.options) {
+      if (this.options.hasOwnProperty(key)) {
+        resolved[key] = this.options[key];
+      }
+    }
+    for (let key in options) {
+      if (options.hasOwnProperty(key)) {
+        resolved[key] = options[key];
+      }
+    }
+    return new PropertiesRunContext(resolved);
+  }
+
+  onContext<T>(invoked: ContextInvocation<T>): T {
+    return invoked.invoke();
   }
 }
