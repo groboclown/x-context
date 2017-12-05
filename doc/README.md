@@ -1,4 +1,4 @@
-# General Overview of the Contextual Program control
+# General Overview of the Contextual Program Control
 
 The general concept is that, within a stack, the program control runs
 within the restrictions of the stack's current context.  The context
