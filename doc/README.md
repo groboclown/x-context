@@ -115,18 +115,3 @@ the information is passed to a factory method on the context.  The
 context then assembles the child context, or possibly raises a failure
 state due to incompatible parameters (say, a parent context that
 disallows any local I/O, and the function requires I/O operations).
-
-
-## Relationship to Existing Technology
-
-The per-function context is very similar to some Aspect-Oriented
-Programming concepts.  The simple AOP example of logging can also
-apply to CPC.
-
-For security purposes, the model matches how Android and iOS computing
-devices manage permissions on an application level.  The CPC model is
-on a finer grain level.
-
-The failure context slightly resembles `catch` clauses in programming
-languages.  However, with context flow control, the capabilities
-expand far beyond what was possible with simple `catch` logic.
