@@ -16,9 +16,18 @@ Let us also assume for this document that the system under consideration has com
 
 Through static examination of the code, we can discover the points where the final access requirement resolves, where it assumes the value that will eventually be passed into the function that declares the access requirement.  When all the requirements for the child function call graph is fully resolved, then it can be evaluated for correctness.  Likewise, there may also exist subgraphs with a subset of requirements that are fully resolved, for which these may also be examined for correctness without needing to resolve all the requirements.
 
+### Security State Indeterminancy
+
 Because we are only looking at functional boundaries, we then only need to consider the mutability of values before they are passed in call parameters.  That is to say, whether the calling function makes any changes to a parameter vefore the call.  This means value passing to other functions must consider whether the valueis changed there. It is even more difficult to determine a precise point when condintinal logic may not change a value.  In a simple approach, we can say that if a function can change a value, that it does.
 
-Some of these access requirements can be further defined to allow a better determination earlier in the processing.    For example, even though the file read requires resolution of the filename, if the calling code does not require file access, then we have a contradinction in requirements, and thus a security violation.
+Some functions will never be able to determine thier security state until they execute.  For example, a database table may implement a per-row security scheme, which means that the ownership of the updated row cannot be determined until the request to update runs.
+
+### Security State Violation Determinancy
+
+Even though some functionality requires late discovery of security state validity, the opposite, determining security state violations, can be determined very early.
+
+For example, even though the file read requires resolution of the filename, if the calling code does not require file access, then we have a contradinction in requirements, and thus a security violation.
+
 
 ## Access Requirement Objects
 
